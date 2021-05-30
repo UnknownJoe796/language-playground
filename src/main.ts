@@ -13,76 +13,100 @@ import {
 
 const base = new Module();
 
-base.set("plus", (inputs: Record<string, any>): Record<string, any> => {
+base.set("plus", (context: Module): Record<string, any> => {
     return {
-        result: inputs.left as number + inputs.right as number
+        result: context.get("left") as number + context.get("right") as number
     }
 })
-base.set("minus", (inputs: Record<string, any>): Record<string, any> => {
+base.set("minus", (context: Module): Record<string, any> => {
     return {
-        result: inputs.left as number - inputs.right as number
+        result: context.get("left") as number - context.get("right") as number
     }
 })
-base.set("times", (inputs: Record<string, any>): Record<string, any> => {
+base.set("times", (context: Module): Record<string, any> => {
     return {
-        result: inputs.left as number * inputs.right as number
+        result: context.get("left") as number * context.get("right") as number
     }
 })
-base.set("if", (inputs: Record<string, any>): Record<string, any> => {
+base.set("if", (context: Module): Record<string, any> => {
     return {
-        result: inputs.condition ? inputs.then() : inputs.else()
+        result: context.get("condition") ? context.get("then")() : context.get("else")()
     }
 })
-base.set("equals", (inputs: Record<string, any>): Record<string, any> => {
+base.set("equals", (context: Module): Record<string, any> => {
     return {
-        result: inputs.left === inputs.right
+        result: context.get("left") === context.get("right")
     }
 })
 
-const double = new LangFunction()
-double.parent = base
-double.inputs = {input: {}}
-double.outputs = {result: {}}
-double.moduleSource = {
-    result: new CallResult(new Call(new Reference("plus"), {
-        left: new Reference("input"),
-        right: new Reference("input")
-    }), "result")
-}
-base.set("double", double)
+base.set("double", new LangFunction(
+    {input: {}},
+    {result: {}},
+    {
+        result: new CallResult(new Call(new Reference("plus"), {
+            left: new Reference("input"),
+            right: new Reference("input")
+        }), "result")
+    },
+    {},
+    base
+))
 
-const factorial = new LangFunction()
-factorial.parent = base
-factorial.inputs = {input: {}}
-factorial.outputs = {result: {}}
-factorial.moduleSource = {
-    result: new CallResult(new Call(new Reference("if"), {
-        condition: new CallResult(new Call(new Reference("equals"), {
-            left: new Reference("input"),
-            right: new Constant(1)
-        }), "result"),
-        then: new Lazy(new Constant(1)),
-        else: new Lazy(new CallResult(new Call(new Reference("times"), {
-            left: new Reference("input"),
-            right: new CallResult(new Call(new Reference("factorial"), {
-                input: new CallResult(new Call(new Reference("minus"), {
-                    left: new Reference("input"),
-                    right: new Constant(1)
+base.set("factorial", new LangFunction(
+    {input: {}},
+    {result: {}},
+    {
+        result: new CallResult(new Call(new Reference("if"), {
+            condition: new CallResult(new Call(new Reference("equals"), {
+                left: new Reference("input"),
+                right: new Constant(1)
+            }), "result"),
+            then: new Lazy(new Constant(1)),
+            else: new Lazy(new CallResult(new Call(new Reference("times"), {
+                left: new Reference("input"),
+                right: new CallResult(new Call(new Reference("factorial"), {
+                    input: new CallResult(new Call(new Reference("minus"), {
+                        left: new Reference("input"),
+                        right: new Constant(1)
+                    }), "result")
                 }), "result")
-            }), "result")
-        }), "result"))
-    }), "result")
-}
-base.set("factorial", factorial)
+            }), "result"))
+        }), "result")
+    },
+    {},
+    base
+))
 
-base.set("defineFunction", (inputs: Record<string, any>): Record<string, any> => {
-    const func = new LangFunction()
-    func.parent = base
-    func.inputs = inputs['inputs']
-    func.outputs = inputs['outputs']
-    func.moduleSource = inputs['module']
-    return {result: func}
+base.set("defineFunction", (context: Module): Record<string, any> => {
+    return {
+        result: new LangFunction(
+            context.get('inputs'),
+            context.get('outputs'),
+            context.get('module'),
+            {},
+            context.parent
+        )
+    }
 })
+
+base.set("makePlus", new LangFunction(
+    {by: {}},
+    {result: {}},
+    {
+        result: new CallResult(new Call(new Reference("defineFunction"), {
+            inputs: new Constant({input: {}}),
+            outputs: new Constant({result: {}}),
+            module: new Constant({
+                result: new CallResult(new Call(new Reference("plus"), {
+                    left: new Reference("input"),
+                    right: new Reference("by")
+                }), "result")
+            })
+        }), "result")
+    },
+    {},
+    base
+))
 
 console.log(new Call(new CallResult(new Call(new Reference("defineFunction"), {
     inputs: new Constant({input: {}}),
@@ -96,6 +120,14 @@ console.log(new Call(new CallResult(new Call(new Reference("defineFunction"), {
 }), "result"), {
     input: new Constant(8)
 }).evaluate(base).result)
+
+console.log(new Call(new CallResult(new Call(new Reference("makePlus"), {
+    by: new Constant(2)
+}), "result"), {
+    input: new Constant(8)
+}).evaluate(base).result)
+
+
 console.log(new Call(new Reference("factorial"), {
     input: new Constant(8)
 }).evaluate(base).result)

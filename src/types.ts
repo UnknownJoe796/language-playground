@@ -11,28 +11,32 @@ export class Call {
 
     evaluate(context: Module): Record<string, any> {
         const already = context.evaluatedCalls.get(this)
-        if(already !== undefined) return already
+        if (already !== undefined) return already
         const evaluatedInputs: Record<string, any> = {}
-        for(const key in this.inputs) {
+        for (const key in this.inputs) {
             evaluatedInputs[key] = this.inputs[key].evaluate(context)
         }
         let result: Record<string, any>
         const callee = this.target.evaluate(context)
-        if(typeof callee === "function") {
-            result = callee(evaluatedInputs)
-        } else if(callee instanceof LangFunction) {
+        if (typeof callee === "function") {
+            const execution = new Module()
+            execution.parent = context
+            execution.stored = evaluatedInputs
+            result = callee(execution)
+        } else if (callee instanceof LangFunction) {
             result = callee.evaluate(evaluatedInputs)
         } else {
-            throw Error(`Callee is not a function, it is ${callee} at ${this.target}`)
+            throw Error(`Callee is not a function, it is ${callee} at ${this.target}\nContext: ${context}`)
         }
         context.evaluatedCalls.set(this, result)
         return result
     }
+
     toString(): string {
         let inputString = ""
         let first = true
-        for(const key in this.inputs){
-            if(first) first = false
+        for (const key in this.inputs) {
+            if (first) first = false
             else inputString += ", "
             inputString += key
             inputString += "="
@@ -50,6 +54,7 @@ export abstract class Expression {
 
 export class Lazy extends Expression {
     expression: Expression
+
     constructor(expression: Expression) {
         super()
         this.expression = expression
@@ -95,6 +100,7 @@ export class Constant extends Expression {
     evaluate(context: Module): any {
         return this.value
     }
+
     toString(): string {
         return this.value.toString();
     }
@@ -118,6 +124,7 @@ export class Reference extends Expression {
             return context.get(this.key)
         }
     }
+
     toString(): string {
         return `${this.key}`
     }
@@ -132,15 +139,50 @@ export class LangFunction {
     outputs: Record<string, OutputMetadata>
     moduleSource: Record<string, Expression>
 
+    constructor(
+        inputs: Record<string, InputMetadata>,
+        outputs: Record<string, OutputMetadata>,
+        moduleSource: Record<string, Expression>,
+        metadata: Metadata = {},
+        parent?: Module
+    ) {
+        this.parent = parent
+        this.metadata = metadata
+        this.inputs = inputs
+        this.outputs = outputs
+        this.moduleSource = moduleSource
+    }
+
     evaluate(inputs: Record<string, any>): Record<string, any> {
         const execution = new Module()
         execution.parent = this.parent
         execution.source = this.moduleSource
         execution.stored = inputs
         const out: Record<string, any> = {}
-        for(const key in this.outputs){
+        for (const key in this.outputs) {
             out[key] = execution.get(key)
         }
+        return out
+    }
+
+    toString(): string {
+        let out = "("
+        for(const key in this.inputs){
+            out += key
+            out += " "
+        }
+        out += ") : ("
+        for(const key in this.outputs){
+            out += key
+            out += " "
+        }
+        out += ") { "
+        for(const key in this.moduleSource){
+            out += key
+            out += ": "
+            out += this.moduleSource[key]
+        }
+        out += " }"
         return out
     }
 }
@@ -161,19 +203,46 @@ export class Module {
     source: Record<string, Expression> = {}
     evaluatedCalls: Map<any, Record<string, any>> = new Map()
     stored: Record<string, any> = {}
+
     get(key: string): any {
         const s = this.stored[key]
-        if(s !== undefined) return s
+        if (s !== undefined) return s
         const e = this.source[key]
-        if(e !== undefined){
+        if (e !== undefined) {
             const calculated = e.evaluate(this)
             this.stored[key] = calculated;
             return calculated
         }
         return this.parent?.get(key)
     }
+
     set(key: string, value: any) {
         this.stored[key] = value;
+    }
+
+    toString(indent: number = 1): string {
+        let out = "{\n"
+        for(const key in this.source) {
+            for(let i = 0; i < indent; i++)
+                out += "  "
+            out += key
+            out += ": "
+            out += this.source[key]
+            out += "\n"
+        }
+        for(const key in this.stored) {
+            for(let i = 0; i < indent; i++)
+                out += "  "
+            out += key
+            out += ": "
+            out += this.stored[key]
+            out += "\n"
+        }
+        if(this.parent){
+            out += this.parent.toString(indent + 1)
+        }
+        out += "}"
+        return out
     }
 }
 
