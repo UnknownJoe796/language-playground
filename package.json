@@ -4,10 +4,12 @@
   "scripts": {
     "build": "tsc",
     "start": "tsc && node dist/main.js",
-    "antlr4ts": "antlr4ts -visitor src/TestLang.g4 -o src/parser"
+    "antlr4ts": "antlr4ts -lib antlr -o src/parser antlr/TestLangLexer.g4 antlr/TestLangParser.g4"
   },
   "dependencies": {
-    "antlr4ts": "^0.5.0-alpha.4"
+    "antlr4ts": "^0.5.0-alpha.4",
+    "ts-node": "^10.0.0",
+    "@types/node": "^15.12.1"
   },
   "devDependencies": {
     "antlr4ts-cli": "^0.5.0-alpha.4",

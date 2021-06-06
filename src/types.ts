@@ -9,7 +9,7 @@ export class Call {
         this.inputs = inputs
     }
 
-    evaluate(context: Module): Record<string, any> {
+    evaluate(context: Scope): Record<string, any> {
         const already = context.evaluatedCalls.get(this)
         if (already !== undefined) return already
         const evaluatedInputs: Record<string, any> = {}
@@ -19,7 +19,7 @@ export class Call {
         let result: Record<string, any>
         const callee = this.target.evaluate(context)
         if (typeof callee === "function") {
-            const execution = new Module()
+            const execution = new Scope()
             execution.parent = context
             execution.stored = evaluatedInputs
             result = callee(execution)
@@ -49,24 +49,7 @@ export class Call {
 export abstract class Expression {
     metadata?: Record<string, any>
 
-    abstract evaluate(context: Module): any
-}
-
-export class Lazy extends Expression {
-    expression: Expression
-
-    constructor(expression: Expression) {
-        super()
-        this.expression = expression
-    }
-
-    evaluate(context: Module): any {
-        return () => this.expression.evaluate(context)
-    }
-
-    toString(): string {
-        return `lazy<${this.expression}>`
-    }
+    abstract evaluate(context: Scope): any
 }
 
 export class CallResult extends Expression {
@@ -79,7 +62,7 @@ export class CallResult extends Expression {
         this.name = name
     }
 
-    evaluate(context: Module): any {
+    evaluate(context: Scope): any {
         const callResult = this.call.evaluate(context)
         return callResult[this.name]
     }
@@ -97,12 +80,29 @@ export class Constant extends Expression {
         this.value = value
     }
 
-    evaluate(context: Module): any {
+    evaluate(context: Scope): any {
         return this.value
     }
 
     toString(): string {
         return this.value.toString();
+    }
+}
+
+export class LazyConstant extends Expression {
+    generator: (context: Scope) => any
+
+    constructor(generator: (context: Scope) => any) {
+        super();
+        this.generator = generator
+    }
+
+    evaluate(context: Scope): any {
+        return this.generator(context)
+    }
+
+    toString(): string {
+        return "[lazy constant]"
     }
 }
 
@@ -116,12 +116,23 @@ export class Reference extends Expression {
         this.key = key
     }
 
-    evaluate(context: Module): any {
+    evaluate(context: Scope): any {
         if (this.module) {
-            const m = this.module.evaluate(context) as Module;
-            return m.get(this.key)
+            const m = this.module.evaluate(context) as Scope | undefined;
+            if(m === undefined) {
+                throw Error(`${this.module} is undefined, not a scope`)
+            }
+            const result = m.get(this.key)
+            if(result === undefined) {
+                throw Error(`${this.module} does not contain '${this.key}', is: ${this.module}`)
+            }
+            return result
         } else {
-            return context.get(this.key)
+            const result = context.get(this.key)
+            if(result === undefined) {
+                throw Error(`Context does not contain '${this.key}', is: ${context}`)
+            }
+            return result
         }
     }
 
@@ -130,10 +141,27 @@ export class Reference extends Expression {
     }
 }
 
+export class ListExpression extends Expression {
+    parts: Array<Expression>
+
+    constructor(parts: Array<Expression>) {
+        super();
+        this.parts = parts
+    }
+
+    evaluate(context: Scope): any {
+        return this.parts.map(x => x.evaluate(context))
+    }
+
+    toString(): string {
+        return `[${this.parts.join()}]`
+    }
+}
+
 // Functions
 
 export class LangFunction {
-    parent?: Module
+    parent?: Scope
     metadata: Metadata
     inputs: Record<string, InputMetadata>
     outputs: Record<string, OutputMetadata>
@@ -144,7 +172,7 @@ export class LangFunction {
         outputs: Record<string, OutputMetadata>,
         moduleSource: Record<string, Expression>,
         metadata: Metadata = {},
-        parent?: Module
+        parent?: Scope
     ) {
         this.parent = parent
         this.metadata = metadata
@@ -154,7 +182,7 @@ export class LangFunction {
     }
 
     evaluate(inputs: Record<string, any>): Record<string, any> {
-        const execution = new Module()
+        const execution = new Scope()
         execution.parent = this.parent
         execution.source = this.moduleSource
         execution.stored = inputs
@@ -185,6 +213,10 @@ export class LangFunction {
         out += " }"
         return out
     }
+
+    r(args: Record<string, any> = {}, desired: string = "result"): any {
+        return this.evaluate(args)[desired]
+    }
 }
 
 export interface Metadata {
@@ -198,8 +230,8 @@ export interface OutputMetadata extends Metadata {
 
 // Modules
 
-export class Module {
-    parent?: Module
+export class Scope {
+    parent?: Scope
     source: Record<string, Expression> = {}
     evaluatedCalls: Map<any, Record<string, any>> = new Map()
     stored: Record<string, any> = {}
@@ -220,29 +252,8 @@ export class Module {
         this.stored[key] = value;
     }
 
-    toString(indent: number = 1): string {
-        let out = "{\n"
-        for(const key in this.source) {
-            for(let i = 0; i < indent; i++)
-                out += "  "
-            out += key
-            out += ": "
-            out += this.source[key]
-            out += "\n"
-        }
-        for(const key in this.stored) {
-            for(let i = 0; i < indent; i++)
-                out += "  "
-            out += key
-            out += ": "
-            out += this.stored[key]
-            out += "\n"
-        }
-        if(this.parent){
-            out += this.parent.toString(indent + 1)
-        }
-        out += "}"
-        return out
+    toString(): string {
+        return `Scope { ${Object.keys(this.source).concat(Object.keys(this.stored)).join()} }`
     }
 }
 

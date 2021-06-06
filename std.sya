@@ -1,0 +1,19 @@
+number = {
+    plus = jsFunction(inputs: ["left", "right"], code: "left + right");
+    minus = jsFunction(inputs: ["left", "right"], code: "left - right");
+    times = jsFunction(inputs: ["left", "right"], code: "left * right");
+    divide = jsFunction(inputs: ["left", "right"], code: "left / right");
+    equals = jsFunction(inputs: ["left", "right"], code: "left === right");
+    square = (input) -> number.times(left: input, right: input);
+    factorial = (input) -> control.if(
+        condition: equals(left: 1, right: input)
+        then: () -> 1
+        otherwise: () -> times(
+            left: input,
+            right: factorial(input: minus(left: input, right: 1))
+        )
+    );
+};
+control = {
+    if = jsFunction(inputs: ["condition", "then", "otherwise"], code: "condition ? then.r() : otherwise.r()");
+};
