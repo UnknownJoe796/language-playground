@@ -8,7 +8,7 @@ import {
     Metadata,
     InputMetadata,
     OutputMetadata,
-    Scope, LazyConstant, ListExpression
+    Scope, ListExpression, Module, FunctionExpression
 } from './types'
 import {
     CallContext,
@@ -141,62 +141,46 @@ export function parseValue1(value: Value1Context): Expression {
     const f = value.functionDefinition()
     if (f) {
         const identifierLists = f.identifierList()
-        const inputs: Record<string, InputMetadata> = {}
-        for (const mapping of identifierLists[0].Identifier()) {
-            inputs[mapping.text] = {}
-        }
-        const outputs: Record<string, OutputMetadata> = {}
+        const inputs: Array<string> = identifierLists[0].Identifier().map(x => x.text)
+        const outputs: Array<string> = []
         if(identifierLists.length > 1){
             const outputList = f.identifierList(1)
             if (outputList) {
                 for (const mapping of outputList.Identifier()) {
-                    outputs[mapping.text] = {}
+                    outputs.push(mapping.text)
                 }
             }
         } else {
             const outputName = f.Identifier()?.text ?? "result"
-            outputs[outputName] = {}
+            outputs.push(outputName)
         }
         const outputExpression = f.value()
         if (outputExpression) {
             const key = f.Identifier()?.text ?? "result"
-            outputs[key] = {}
-            return new LazyConstant(scope => {
-                const vm: Record<string, Expression> = {}
-                vm[key] = parseValue(outputExpression)
-                return new LangFunction(
-                    inputs,
-                    outputs,
-                    vm,
-                    {},
-                    scope
-                )
-            })
+            outputs.push(key)
+            const source: Record<string, Expression> = {}
+            source[key] = parseValue(outputExpression)
+            return new FunctionExpression(
+                inputs,
+                outputs,
+                source
+            )
         }
 
         const m = f.module()
         if (m) {
             const source = parseSource(m)
-            return new LazyConstant(scope => {
-                return new LangFunction(
-                    inputs,
-                    outputs,
-                    source,
-                    {},
-                    scope
-                )
-            })
+            return new FunctionExpression(
+                inputs,
+                outputs,
+                source
+            )
         }
     }
     const m = value.module()
     if (m) {
         const source = parseSource(m)
-        return new LazyConstant(parent => {
-            const s = new Scope()
-            s.parent = parent
-            s.source = source
-            return s
-        })
+        return new Module(source)
     }
 
     throw new Error("Unknown value kind")

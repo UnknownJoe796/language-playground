@@ -89,20 +89,50 @@ export class Constant extends Expression {
     }
 }
 
-export class LazyConstant extends Expression {
-    generator: (context: Scope) => any
-
-    constructor(generator: (context: Scope) => any) {
+export class Module extends Expression {
+    source: Record<string, Expression>
+    constructor(source: Record<string, Expression>) {
         super();
-        this.generator = generator
+        this.source = source
     }
-
     evaluate(context: Scope): any {
-        return this.generator(context)
+        const s = new Scope()
+        s.parent = context
+        s.source = this.source
+        return s
     }
 
     toString(): string {
-        return "[lazy constant]"
+        return this.source.toString();
+    }
+}
+
+export class FunctionExpression extends Expression {
+    inputs: Array<string>
+    outputs: Array<string>
+    moduleSource: Record<string, Expression>
+
+    constructor(
+        inputs: Array<string>,
+        outputs: Array<string>,
+        moduleSource: Record<string, Expression>
+    ) {
+        super();
+        this.inputs = inputs
+        this.outputs = outputs
+        this.moduleSource = moduleSource
+    }
+    evaluate(context: Scope): any {
+        return new LangFunction(
+            this.inputs,
+            this.outputs,
+            this.moduleSource,
+            context
+        )
+    }
+
+    toString(): string {
+        return this.moduleSource.toString();
     }
 }
 
@@ -162,20 +192,17 @@ export class ListExpression extends Expression {
 
 export class LangFunction {
     parent?: Scope
-    metadata: Metadata
-    inputs: Record<string, InputMetadata>
-    outputs: Record<string, OutputMetadata>
+    inputs: Array<string>
+    outputs: Array<string>
     moduleSource: Record<string, Expression>
 
     constructor(
-        inputs: Record<string, InputMetadata>,
-        outputs: Record<string, OutputMetadata>,
+        inputs: Array<string>,
+        outputs: Array<string>,
         moduleSource: Record<string, Expression>,
-        metadata: Metadata = {},
         parent?: Scope
     ) {
         this.parent = parent
-        this.metadata = metadata
         this.inputs = inputs
         this.outputs = outputs
         this.moduleSource = moduleSource
@@ -187,7 +214,7 @@ export class LangFunction {
         execution.source = this.moduleSource
         execution.stored = inputs
         const out: Record<string, any> = {}
-        for (const key in this.outputs) {
+        for (const key of this.outputs) {
             out[key] = execution.get(key)
         }
         return out
@@ -195,12 +222,12 @@ export class LangFunction {
 
     toString(): string {
         let out = "("
-        for(const key in this.inputs){
+        for(const key of this.inputs){
             out += key
             out += " "
         }
         out += ") : ("
-        for(const key in this.outputs){
+        for(const key of this.outputs){
             out += key
             out += " "
         }
@@ -236,6 +263,10 @@ export class Scope {
     evaluatedCalls: Map<any, Record<string, any>> = new Map()
     stored: Record<string, any> = {}
 
+    constructor(parent?: Scope) {
+        this.parent = parent
+    }
+
     get(key: string): any {
         const s = this.stored[key]
         if (s !== undefined) return s
@@ -253,40 +284,6 @@ export class Scope {
     }
 
     toString(): string {
-        return `Scope { ${Object.keys(this.source).concat(Object.keys(this.stored)).join()} }`
+        return `Scope { ${Object.keys(this.source).concat(Object.keys(this.stored)).join()}, parent is ${this.parent} }`
     }
 }
-
-/*
-Ultra-minimal importable syntax
-
-someModule = {
-    a: a, b: b = otherModule_someFunc(c: c, d: d);
-    nestedModule = {
-        a = 6
-    }
-    c = nestedModule_a
-    d = 123
-    e = 43.10
-    f = "asdf"
-    plus = js("(x, y) -> x + y")
-    g = [1, 2, 3]
-}
-
-actualMap = Map(
-    Pair(1, 2),
-    Pair(3, 4),
-    Pair(5, 6)
-)
-
-someFunction = () -> () {
-
-}
-
-Next steps for this syntax:
-- Types
-- Infer module import from types (dot operator)
-    - Will require multiple step process
-- Operators
-    - An extension of the above, really
- */
