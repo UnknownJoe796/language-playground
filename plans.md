@@ -1,0 +1,15 @@
+- Alternate Execution Mode
+    - Scopes have context identifier
+    - Declare Executor
+        - Turn current execution into the default executor
+        - Declare alternative executors
+            - Naming convention relative to context name
+    - Run with executor
+        - Called using functions
+        - `executor(() -> x)`
+- Psuedo-mutable Syntax
+    - Re-define shifts around declaration binding
+    - Convert scope to graph - basically, make non-public declarations private
+    - Merge context and function to being the same thing
+    - `export` keyword, just like JS?
+    

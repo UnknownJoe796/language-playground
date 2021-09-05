@@ -219,15 +219,54 @@ identifier =
 
 ```
 
+# June 7, 2021
 
+Types and type-based editing
 
+The language interpreter will be part of the LSP.
 
+"Mutable" syntax via rebinding to add annotations to a package
 
+Access function metadata via '.' operator - function IS a module
 
+Module != struct - Modules are lazy, structs are eager.
 
+Use the language itself to help build a more advanced syntax!
 
+```
+a + b 
+typeOf(a).plus(left: a, right: b)
+Number.plus(left: a, right: b)
+```
 
+How does `typeOf` work?  Expressions have to have metadata?  WTF?
+ 
+# July 5, 2021
 
+- Functions need the type metadata
+- Values need the type metadata
+
+How do we do type analysis, might be a better question.  Let's work backwards.
+
+Every expression has a type.
+Possible expressions include constants, call results, references, list expressions
+
+Type check simply executes the thing in terms of types in question, throwing if there is a mismatch of types somewhere
+
+This is why alternate execution system makes perfect sense
+
+    a = 5
+    a#type = Int
+    a#docs = "The constant '5'"
+    b = (x) -> Int.plus(x, 1)
+    b#type = function([Int], Int)
+    b#docs = "Increments the input by 1"
+    c = b(a)
+    c#type = Int  // implied
+
+Fallback to alternate execution lookup with mapping
+
+    b#kotlin = (x) => "$x + 1"
 
 
 

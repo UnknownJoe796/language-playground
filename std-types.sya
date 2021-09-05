@@ -1,0 +1,32 @@
+type = {}
+
+annotate = (subject, key, value): (subject) { ... }
+
+annotate(&number.plus.left, type, number)
+annotate(&number.plus.right, type, number)
+annotate(&number.plus.result, type, number)
+
+// "Mutable" Syntax
+
+// Reassignment
+a = 1
+a = plus(left: 1, right: a)  // not actually mutating, but creating a new variable entirely
+
+// Deep Reassignment
+a = { b = 1 }
+a.b = 2  // module modification - creates new "duplicate" module, assigns it to match with a single change.  Just changes it IF there's nothing capturing the name otherwise
+
+// Reassigning function call
+increment = (number):(number) { number = plus(left: number, right: 1) }
+a = 1
+increment(number: &a)  // Might need an ampersand to indicate "mutable" usage so that the parser doesn't need to know about the function to make it work
+//Shorthand for
+a: number = increment(number: a)
+// a bound below is now 2
+
+a = {b = 1}
+increment(number: &a.b)  // You can do deeper references this way
+// Shorthand for
+a.b = increment(number: a.b)
+// Which is a deep reassignment
+

@@ -1,0 +1,80 @@
+extern X
+extern Y
+
+Number: {
+    plus: jsFunction { code: "$left + $right" }
+    minus: jsFunction { code: "$left - $right" }
+    times: jsFunction { code: "$left * $right" }
+    divide: jsFunction { code: "$left / $right" }
+    equals: jsFunction { code: "$left === $right" }
+    square: {
+        result: number.times { left: input, right: input }
+    }
+    // Alternate syntax:
+    square: -> number.times { left: input, right: input }
+    square#type: Type.Function {
+        takes: {
+            input: Number
+        },
+        returns: {
+            result: Number
+        }
+    }
+    square#kotlin: "Math.pow(${input#kotlin}, 2)"
+    factorial: {
+        result: control.if {
+             condition: equals { left: 1, right: input }
+             then: 1
+             otherwise: times {
+                 left: input,
+                 right: factorial { input: minus{left: input, right: 1} }
+             }
+        }
+    }
+    iterFactorial: {
+        a: 1
+        control.repeat {
+            iterations: input
+            action: mut(a) {
+                a: Number.times {
+                    left: a,
+                    right: iteration
+                }
+            }
+        }
+        // Desugars to
+        (a: a) : control.repeat {
+            context: { a: a },
+            iterations: input
+            action: {
+                context.a: Number.times {
+                    left: context.a,
+                    right: iteration
+                }
+            }
+            action#type: Type.Function {
+                takes: { context: { a: a }, iteration: number }
+                returns: { context: { a: a } }
+            }
+        }
+        a: repeatResult.a
+        result: a
+    }
+}
+control: {
+    if: jsFunction(code: "$condition ? $then.r() : $otherwise.r()")
+    repeat: ...
+    repeat#type: {
+        takes: {
+            context: action.takes
+            iterations: action.iterations
+        }
+        returns: {
+            context: action.returns
+        }
+    }
+}
+
+Type: {
+    Function: -> construct(*)
+}

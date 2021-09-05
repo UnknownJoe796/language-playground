@@ -1,4 +1,4 @@
-number = {
+Number = {
     plus = jsFunction(inputs: ["left", "right"], code: "left + right");
     minus = jsFunction(inputs: ["left", "right"], code: "left - right");
     times = jsFunction(inputs: ["left", "right"], code: "left * right");

@@ -1,0 +1,54 @@
+
+Number = {
+    plus#default = ...
+    plus#type = Function((left: Number, right: Number), Number)
+}
+
+control = {
+    if#default = ...
+    if#type = (condition, then, else) -> Type.Or(then, else)
+}
+
+Type = {
+    Or =
+}
+
+/*
+
+For execution:
+
+Constant -> Specific execution magic
+List -> Specific execution magic
+Call Result -> Make call as normal, but with references shifted
+Reference -> Refer with #context appended
+
+How do we modify the system to accommodate?
+We don't care about syntax that much, just execution.
+
+fun execute(context: String, expression: Expression, onConstant: (Any)->Any, onList: ()->Any, onCall: (Call)->Results): Any
+
+Syntax levels:
+
+- Scope/Expression/AEM
+- Plus Mutation
+- Plus Types
+- (Analysis) Plus Context Access (Number::plus(receiver: a, other: b) -> a.plus(other: b))
+- (Analysis) Plus Ordered Arguments (a.plus(other: b) -> a.plus(b))
+- (Analysis) Inferred Arguments
+- Plus Operators (a.plus(b) -> a + b)
+
+Concept Levels:
+- Scope/Expression/AEM
+- Call by context search, Ordered Arguments, Inferred Arguments  (requires types to function)
+    - Metadata-implemented
+        - function#type - Typing information
+        - function#context - Allows for contextual lookup via map of contextual type to name
+        - function#orderedArguments - Allows for explicit specification of argument order (?)
+        - function#inferrableArguments - Allows for specifying which arguments can be scope-inferred
+        - function#inferrableResults - Allows for specifying which results can be scope-inferred for returning
+
+What belongs in the IR?  AKA what is not reversible?
+- Expression separation needs more information - if there is a named middle representation, the name isn't stored at the bottom.
+    - Solution: store via private fields
+
+*/

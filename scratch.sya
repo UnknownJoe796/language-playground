@@ -1,0 +1,14 @@
+
+plus = jsFunction(inputs = ["left", "right"], code = "left + right");
+annotate plus.left/type = number
+annotate plus.right/type = number
+annotate plus.result/type = number
+
+number = {
+    plus = jsFunction(inputs = {
+        left = { type = number };
+        right = { type = number };
+    }, code = "left + right", returnType = number);
+}
+
+annotate
