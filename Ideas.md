@@ -223,42 +223,46 @@ identifier =
 
 
 
+## Types!
 
+What do we need in order to process something?
 
+- Default ending to look up
+- Mapping per expression type
+  - CallResult
+  - Constant
+  - Module
+  - FunctionExpression
+  - Reference
+  - ListExpression
 
+Transpilation is tricky because this is a graph-based language, not a tree-based language - how on earth do you model some of these things in other languages?!
 
+The graph is necessary for effect-tracking, and thus metaprogramming.
 
+Perhaps in/out parameters?  It effectively means the same thing, but it transpiles much easier.
 
+Transpilation frequently requires contextual information, such as looking at information about the parent node.
 
+```
+type(x) = ...
+kotlin(x) = ...
 
+type(_ == number.add) = Function(number, number, number)
+main = number.add(1, 2)
 
+kotlin(number.add) = (left, right) => "(${left} + ${right})"
 
+kotlin(type(x) == Function) = 
 
+Point = struct()
+  .addProperty("x")
+  .addProperty("y")
 
+_ = type(\main)
+_ = kotlin(\main)
+_ = type(kotlin(\main))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+kotlin = (previous: Conversions) => previous
+  .add(x => type(x) == Int, x => )
+```
